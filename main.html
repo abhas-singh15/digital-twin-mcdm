@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Twin & MCDM — Live Python Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0e1219;
+    --card: #131820;
+    --border: #1c2333;
+    --accent: #00e5ff;
+    --accent2: #6c63ff;
+    --accent3: #00e096;
+    --gold: #fbbf24;
+    --red: #ff4d6d;
+    --text: #dde4f0;
+    --muted: #5a6a88;
+    --light: #9aacc4;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --serif: 'Playfair Display', serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* grid overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      linear-gradient(rgba(0,229,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.85rem 2.5rem;
+    background: rgba(8,11,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-brand {
+    font-family: var(--mono); font-size: 0.72rem;
+    color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .nav-tabs { display: flex; gap: 0; }
+  .nav-tab {
+    background: none; border: none; cursor: pointer;
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0.5rem 1.25rem; border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .nav-tab:hover { color: var(--accent); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── PAGES ── */
+  .page { display: none; position: relative; z-index: 1; }
+  .page.active { display: block; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 42vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4rem 2.5rem 3rem;
+    position: relative; overflow: hidden;
+    text-align: center;
+  }
+  .hero-blob {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,255,0.07), transparent 70%);
+    animation: blobanim 5s ease-in-out infinite;
+  }
+  .hero-blob:nth-child(1) { width:500px; height:500px; top:50%; left:50%; transform:translate(-50%,-50%); }
+  .hero-blob:nth-child(2) { width:300px; height:300px; top:20%; right:5%; background:radial-gradient(circle,rgba(108,99,255,0.08),transparent 70%); animation-delay:-2.5s; }
+  @keyframes blobanim { 0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)} 50%{opacity:.6;transform:translate(-50%,-50%) scale(1.1)} }
+
+  .hero-content { position: relative; z-index:1; max-width: 720px; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(0,229,255,0.07); border: 1px solid rgba(0,229,255,0.22);
+    border-radius: 100px; padding: 0.35rem 1rem;
+    font-family: var(--mono); font-size: 0.65rem;
+    color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase;
+    margin-bottom: 1.5rem; animation: fadeUp 0.6s ease both;
+  }
+  .hero-badge::before {
+    content: ''; width:6px; height:6px; border-radius:50%;
+    background: var(--accent); animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
+
+  h1.hero-title {
+    font-family: var(--serif); font-size: clamp(2.2rem,5vw,4rem);
+    font-weight: 900; line-height: 1.08; letter-spacing: -0.02em;
+    margin-bottom: 1rem; animation: fadeUp 0.7s ease 0.1s both;
+  }
+  .grad { background: linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .hero-sub { font-size:0.95rem; color:var(--light); margin-bottom:2rem; animation:fadeUp 0.7s ease 0.2s both; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:0.6rem; justify-content:center; animation:fadeUp 0.7s ease 0.3s both; }
+  .chip {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:6px; padding:0.3rem 0.8rem;
+    font-family:var(--mono); font-size:0.65rem; color:var(--light); letter-spacing:0.05em;
+  }
+  .chip b { color:var(--accent); }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+  /* ── SECTION ── */
+  section { padding: 3.5rem 2.5rem; position:relative; z-index:1; }
+  .sec-label { font-family:var(--mono); font-size:0.65rem; color:var(--accent); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:0.5rem; }
+  .sec-title { font-family:var(--serif); font-size:clamp(1.6rem,3vw,2.2rem); font-weight:700; margin-bottom:2rem; }
+  .sec-title em { font-style:italic; color:var(--accent); }
+
+  /* ── PYODIDE RUNNER ── */
+  .runner-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    max-width: 1100px; margin: 0 auto;
+  }
+
+  .runner-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: rgba(0,229,255,0.04);
+    border-bottom: 1px solid var(--border);
+  }
+  .runner-title {
+    display: flex; align-items: center; gap: 0.75rem;
+    font-family: var(--mono); font-size: 0.78rem; color: var(--accent);
+  }
+  .runner-title::before { content:'●'; font-size:0.5rem; animation:blink 2s infinite; }
+
+  .run-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 8px; padding: 0.55rem 1.4rem;
+    font-family: var(--mono); font-size: 0.72rem; color: #000; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .run-btn:hover:not(:disabled) { opacity:.85; transform:translateY(-1px); }
+  .run-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+  .run-btn .icon { font-size: 1rem; }
+
+  .pyodide-status {
+    padding: 0.6rem 1.5rem;
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.5rem;
+    background: rgba(0,0,0,0.2);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.loading { background: var(--gold); animation: blink 0.8s infinite; }
+  .status-dot.ready   { background: var(--accent3); }
+  .status-dot.error   { background: var(--red); }
+
+  /* output terminal */
+  #output-terminal {
+    background: #060910;
+    min-height: 420px; max-height: 600px;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+    font-family: var(--mono); font-size: 0.78rem;
+    line-height: 1.75; color: #8899bb;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #output-terminal::-webkit-scrollbar { width: 6px; }
+  #output-terminal::-webkit-scrollbar-track { background: transparent; }
+  #output-terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ANSI color mappings */
+  .ansi-cyan   { color: #00e5ff; }
+  .ansi-green  { color: #00e096; }
+  .ansi-yellow { color: #fbbf24; }
+  .ansi-red    { color: #ff4d6d; }
+  .ansi-magenta{ color: #c084fc; }
+  .ansi-bold   { font-weight: 700; color: #e8f0ff; }
+  .ansi-dim    { color: #3d4f6e; }
+  .ansi-reset  { color: #8899bb; }
+
+  .prompt-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 280px; gap: 1rem; color: var(--muted);
+  }
+  .prompt-icon { font-size: 3rem; }
+  .prompt-text { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; }
+
+  /* ── CODE VIEWER ── */
+  .code-wrap {
+    max-width: 1100px; margin: 0 auto;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+  }
+  .code-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1.5rem;
+    background: rgba(108,99,255,0.06); border-bottom: 1px solid var(--border);
+  }
+  .code-lang {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--accent2); letter-spacing: 0.1em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .code-lang::before { content:'🐍'; }
+  .dl-btn {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 7px; padding: 0.4rem 1rem;
+    font-family: var(--mono); font-size: 0.68rem; color: var(--light);
+    cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;
+  }
+  .dl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  pre { margin: 0 !important; }
+  pre code.hljs {
+    background: #070a0f !important;
+    font-family: var(--mono) !important;
+    font-size: 0.78rem !important;
+    line-height: 1.75 !important;
+    padding: 1.75rem !important;
+    max-height: 520px;
+    overflow-y: auto;
+    display: block;
+  }
+  pre code.hljs::-webkit-scrollbar { width: 6px; }
+  pre code.hljs::-webkit-scrollbar-track { background: transparent; }
+  pre code.hljs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── INFO CARDS ── */
+  .info-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem; max-width: 1100px; margin: 2rem auto 0;
+  }
+  .info-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+    transition: border-color 0.25s, transform 0.25s;
+  }
+  .info-card:hover { border-color: rgba(0,229,255,0.3); transform: translateY(-3px); }
+  .info-card-icon { font-size: 1.6rem; margin-bottom: 0.75rem; }
+  .info-card-title { font-family: var(--serif); font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .info-card-body { font-size: 0.82rem; color: var(--light); line-height: 1.65; }
+
+  /* ── HOW-IT-WORKS ── */
+  .steps { display: flex; flex-direction: column; gap: 0; max-width: 700px; margin: 0 auto; }
+  .step {
+    display: flex; gap: 1.5rem; align-items: flex-start;
+    padding: 1.5rem 0; border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    font-family: var(--serif); font-size: 2rem; font-weight: 900;
+    color: rgba(0,229,255,0.15); line-height: 1; min-width: 36px;
+  }
+  .step-title { font-family: var(--serif); font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .step-desc { font-size: 0.83rem; color: var(--light); line-height: 1.65; }
+  code.inline {
+    background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 4px; padding: 0.1rem 0.4rem;
+    font-family: var(--mono); font-size: 0.78em; color: var(--accent);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 2.5rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.65rem;
+    color: var(--muted); letter-spacing: 0.08em;
+  }
+
+  @media (max-width: 640px) {
+    nav { padding: 0.75rem 1rem; }
+    .nav-tab { padding: 0.4rem 0.75rem; font-size: 0.6rem; }
+    section { padding: 2.5rem 1.25rem; }
+    #output-terminal { font-size: 0.7rem; min-height: 320px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">DT × MCDM · 2025–26</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('runner')">▶ Run Python</button>
+    <button class="nav-tab" onclick="showPage('code')">{ } View Code</button>
+    <button class="nav-tab" onclick="showPage('about')">⊕ About</button>
+  </div>
+</nav>
+
+<!-- HERO (always visible) -->
+<div class="hero">
+  <div class="hero-blob"></div>
+  <div class="hero-blob"></div>
+  <div class="hero-content">
+    <div class="hero-badge">Live Python · AHP + TOPSIS · Academic 2025–26</div>
+    <h1 class="hero-title"><span class="grad">Digital Twin</span> &amp; MCDM<br>Live Calculator</h1>
+    <p class="hero-sub">Run the full AHP + TOPSIS analysis in your browser — no installation needed. Python executes via WebAssembly (Pyodide).</p>
+    <div class="chips">
+      <span class="chip"><b>Group:</b> Sarveshwaram · Abhas · Anushka · Ashish</span>
+      <span class="chip"><b>Methods:</b> AHP + TOPSIS</span>
+      <span class="chip"><b>Engine:</b> Pyodide (Python in browser)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: RUNNER ══════════════ -->
+<div id="page-runner" class="page active">
+  <section>
+    <div class="sec-label">Live Execution</div>
+    <div class="sec-title">Run the <em>Python Calculator</em></div>
+
+    <div class="runner-wrap">
+      <div class="runner-header">
+        <div class="runner-title">digital_twin_mcdm.py</div>
+        <button class="run-btn" id="run-btn" onclick="runPython()" disabled>
+          <span class="icon">▶</span> Run Analysis
+        </button>
+      </div>
+      <div class="pyodide-status" id="status-bar">
+        <div class="status-dot loading" id="status-dot"></div>
+        <span id="status-text">Loading Python runtime (Pyodide)... this may take 10–20 seconds on first load.</span>
+      </div>
+      <div id="output-terminal">
+        <div class="prompt-placeholder">
+          <div class="prompt-icon">🐍</div>
+          <div class="prompt-text">Python runtime loading...</div>
+          <div class="prompt-text" style="color:#3d4f6e; margin-top:0.25rem">Click "Run Analysis" once ready</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon">⚖️</div>
+        <div class="info-card-title">AHP — Step 2</div>
+        <div class="info-card-body">Pairwise comparison matrix across 5 criteria. Computes priority weights via eigenvalue normalization and validates consistency (CR &lt; 0.10).</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">📐</div>
+        <div class="info-card-title">TOPSIS — Steps 4–7</div>
+        <div class="info-card-body">Vector normalization → weighted matrix → positive/negative ideal solutions → Euclidean distances → closeness coefficient ranking.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🔁</div>
+        <div class="info-card-title">Sensitivity — Step 9</div>
+        <div class="info-card-body">Each criterion weight is boosted by ±20% and TOPSIS is re-run to test robustness of the final ranking under different expert preferences.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🏭</div>
+        <div class="info-card-title">Scenario</div>
+        <div class="info-card-body">Selecting the best Digital Twin vendor (Siemens, Azure, NVIDIA, IBM) for Industry 4.0 predictive maintenance across 5 weighted criteria.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════════ PAGE: CODE ══════════════ -->
+<div id="page-code" class="page">
+  <section>
+    <div class="sec-label">Source Code</div>
+    <div class="sec-title">The <em>Python Script</em></div>
+
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-lang">digital_twin_mcdm.py · Pure Python · No external libraries</div>
+        <a id="dl-link" class="dl-btn" download="digital_twin_mcdm.py">⬇ Download .py</a>
+      </div>
+      <pre><code id="code-block" class="language-python"></code></pre>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════════ PAGE: ABOUT ══════════════ -->
+<div id="page-about" class="page">
+  <section>
+    <div class="sec-label">Documentation</div>
+    <div class="sec-title">How <em>It Works</em></div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div>
+          <div class="step-title">Pyodide Loads Python in Your Browser</div>
+          <div class="step-desc">When the page opens, it loads <a href="https://pyodide.org" style="color:var(--accent)">Pyodide</a> — a full CPython interpreter compiled to WebAssembly. This lets real Python code run inside your browser with zero server or installation needed.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div>
+          <div class="step-title">AHP Derives Criterion Weights</div>
+          <div class="step-desc">The Analytic Hierarchy Process (Saaty, 1970s) takes a 5×5 expert pairwise comparison matrix, normalizes it column-wise, and computes row means as priority weights. Consistency is validated with <code class="inline">CR = CI / RI &lt; 0.10</code>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div>
+          <div class="step-title">TOPSIS Ranks the Alternatives</div>
+          <div class="step-desc">TOPSIS (Hwang &amp; Yoon, 1981) normalizes the decision matrix, applies AHP weights, identifies positive/negative ideal solutions, computes Euclidean distances <code class="inline">D+</code> and <code class="inline">D−</code>, and derives a closeness coefficient <code class="inline">C = D− / (D+ + D−)</code>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div>
+          <div class="step-title">Sensitivity Analysis Tests Robustness</div>
+          <div class="step-desc">Each criterion weight is perturbed by +20% (others rescaled proportionally) and TOPSIS is re-run. If the top-ranked alternative stays the same across all perturbations, the decision is robust.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">05</div>
+        <div>
+          <div class="step-title">Output is Rendered in the Terminal</div>
+          <div class="step-desc">ANSI escape codes in the Python output are parsed by JavaScript and converted to colored HTML spans. The result is a colour-coded terminal replica rendered directly in the browser.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-grid" style="margin-top:3rem;">
+      <div class="info-card">
+        <div class="info-card-icon">👥</div>
+        <div class="info-card-title">Sarveshwaram Goel</div>
+        <div class="info-card-body" style="font-family:var(--mono); font-size:0.75rem; color:var(--accent)">IMH/10003/23</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">👤</div>
+        <div class="info-card-title">Abhas Kumar</div>
+        <div class="info-card-body" style="font-family:var(--mono); font-size:0.75rem; color:var(--accent)">IMH/10011/23</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">👤</div>
+        <div class="info-card-title">Anushka Singh</div>
+        <div class="info-card-body" style="font-family:var(--mono); font-size:0.75rem; color:var(--accent)">IMH/10053/23</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">👤</div>
+        <div class="info-card-title">Ashish Ranjan</div>
+        <div class="info-card-body" style="font-family:var(--mono); font-size:0.75rem; color:var(--accent)">IMH/10063/23</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  Digital Twin &amp; MCDM · Academic Assignment 2025–2026 · Technology &amp; Decision Sciences<br>
+  Python runs via Pyodide (WebAssembly) · No server · No installation
+</footer>
+
+<!-- ══════════════ PYTHON SOURCE (embedded) ══════════════ -->
+<script id="python-source" type="text/plain">
+import math, sys
+from io import StringIO
+
+# ── colour helpers (plain text for browser rendering) ──
+CYAN="\033[96m"; GREEN="\033[92m"; YELLOW="\033[93m"
+RED="\033[91m";  BOLD="\033[1m";   DIM="\033[2m";   RESET="\033[0m"
+
+def header(t):
+    print(f"\n{CYAN}{BOLD}{'═'*65}{RESET}")
+    print(f"{CYAN}{BOLD}  {t}{RESET}")
+    print(f"{CYAN}{BOLD}{'═'*65}{RESET}")
+
+def subheader(t):
+    print(f"\n{YELLOW}{BOLD}  ▶  {t}{RESET}")
+    print(f"{DIM}  {'─'*60}{RESET}")
+
+def info(label, value):
+    print(f"  {DIM}{label:<30}{RESET} {GREEN}{value}{RESET}")
+
+# ── matrix helpers (pure Python, no numpy) ──
+def col_sum(M):
+    return [sum(M[r][c] for r in range(len(M))) for c in range(len(M[0]))]
+
+def normalize_cols(M):
+    cs = col_sum(M)
+    return [[M[r][c]/cs[c] for c in range(len(M[0]))] for r in range(len(M))]
+
+def row_means(M):
+    return [sum(row)/len(row) for row in M]
+
+def dot(a, b):
+    return sum(x*y for x,y in zip(a,b))
+
+# ─────────────────────────────────────────────────
+# STEP 1 — PROBLEM DEFINITION
+# ─────────────────────────────────────────────────
+header("STEP 1 — PROBLEM DEFINITION")
+alternatives = ["Siemens Xcelerator","MS Azure DT","NVIDIA Omniverse","IBM Watson/Maximo"]
+criteria     = ["Real-time Integration","AI/ML Capability","Implementation Cost","Cybersecurity","Scalability"]
+ctype        = ["benefit","benefit","cost","benefit","benefit"]
+
+print(f"\n  {BOLD}Alternatives:{RESET}")
+for i,a in enumerate(alternatives,1): print(f"  {DIM}A{i}{RESET}  {a}")
+print(f"\n  {BOLD}Criteria:{RESET}")
+for i,(c,t) in enumerate(zip(criteria,ctype),1):
+    arrow = f"{GREEN}↑ maximize{RESET}" if t=="benefit" else f"{RED}↓ minimize{RESET}"
+    print(f"  {DIM}C{i}{RESET}  {c:<30} {arrow}")
+
+# ─────────────────────────────────────────────────
+# STEP 2 — AHP Pairwise Comparison
+# ─────────────────────────────────────────────────
+header("STEP 2 — AHP: Criteria Pairwise Comparison Matrix")
+PCM = [
+    [1,    3,    5,    2,    4  ],
+    [1/3,  1,    4,    1/2,  3  ],
+    [1/5,  1/4,  1,    1/5,  1/3],
+    [1/2,  2,    5,    1,    3  ],
+    [1/4,  1/3,  3,    1/3,  1  ],
+]
+n = len(PCM)
+
+subheader("Pairwise Comparison Matrix (PCM)")
+print("  " + " "*25 + "".join(f"{'C'+str(j+1):>10}" for j in range(n)))
+for i,row in enumerate(PCM):
+    print(f"  {DIM}C{i+1}{RESET}  {criteria[i]:<22}" + "".join(f"{v:>10.3f}" for v in row))
+
+subheader("Column Sums")
+cs = col_sum(PCM)
+print("  " + "".join(f"{'C'+str(j+1):>10}" for j in range(n)))
+print("  " + "".join(f"{s:>10.4f}" for s in cs))
+
+norm_PCM = normalize_cols(PCM)
+subheader("Normalized PCM")
+print("  " + " "*25 + "".join(f"{'C'+str(j+1):>10}" for j in range(n)))
+for i,row in enumerate(norm_PCM):
+    print(f"  {DIM}C{i+1}{RESET}  {criteria[i]:<22}" + "".join(f"{v:>10.4f}" for v in row))
+
+weights = row_means(norm_PCM)
+subheader("Criterion Weights (Priority Vector)")
+print(f"  {'Criterion':<30} {'Weight':>10}  Bar")
+for i,(c,w) in enumerate(zip(criteria,weights)):
+    bar = "█"*int(w*40)
+    print(f"  {DIM}C{i+1}{RESET}  {c:<27} {CYAN}{w:>8.4f}{RESET}  {YELLOW}{bar}{RESET}")
+print(f"\n  {DIM}Sum of weights:{RESET} {GREEN}{sum(weights):.4f}{RESET}")
+
+# Consistency check
+subheader("AHP Consistency Check")
+wsum = [dot(PCM[i], weights) for i in range(n)]
+lam_vals = [wsum[i]/weights[i] for i in range(n)]
+lam_max = sum(lam_vals)/n
+CI = (lam_max-n)/(n-1)
+RI = {1:0,2:0,3:.58,4:.9,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49}[n]
+CR = CI/RI
+info("λ_max", f"{lam_max:.4f}")
+info("Consistency Index (CI)", f"{CI:.4f}")
+info("Random Index (RI, n=5)", f"{RI:.2f}")
+info("Consistency Ratio (CR)", f"{CR:.4f}")
+if CR < 0.10:
+    print(f"\n  {GREEN}{BOLD}  ✔  CR < 0.10 — Matrix is CONSISTENT{RESET}")
+else:
+    print(f"\n  {RED}{BOLD}  ✘  CR ≥ 0.10 — Matrix INCONSISTENT — revise judgments{RESET}")
+
+# ─────────────────────────────────────────────────
+# STEP 3 — Decision Matrix
+# ─────────────────────────────────────────────────
+header("STEP 3 — Decision Matrix (Raw Scores 0–10)")
+X = [
+    [8.5, 7.0, 5.0, 8.0, 7.5],
+    [7.5, 8.5, 7.0, 7.5, 9.0],
+    [9.0, 8.0, 4.0, 7.0, 8.0],
+    [7.0, 9.0, 6.5, 8.5, 7.0],
+]
+m = len(X); nc = len(X[0])
+print(f"\n  {'Alternative':<25}" + "".join(f"{'C'+str(j+1):>8}" for j in range(nc)))
+for i,(alt,row) in enumerate(zip(alternatives,X)):
+    print(f"  {DIM}A{i+1}{RESET}  {alt:<22}" + "".join(f"{v:>8.1f}" for v in row))
+print(f"\n  {DIM}C3 = cost criterion (lower is better){RESET}")
+
+# ─────────────────────────────────────────────────
+# STEPS 4–7 — TOPSIS
+# ─────────────────────────────────────────────────
+header("STEP 4 — TOPSIS: Normalize Decision Matrix")
+cnf = [math.sqrt(sum(X[i][j]**2 for i in range(m))) for j in range(nc)]
+R   = [[X[i][j]/cnf[j] for j in range(nc)] for i in range(m)]
+print(f"\n  {'Alternative':<25}" + "".join(f"{'C'+str(j+1):>10}" for j in range(nc)))
+for i,(alt,row) in enumerate(zip(alternatives,R)):
+    print(f"  {DIM}A{i+1}{RESET}  {alt:<22}" + "".join(f"{v:>10.4f}" for v in row))
+
+header("STEP 5 — Weighted Normalized Matrix (V = W × R)")
+V = [[R[i][j]*weights[j] for j in range(nc)] for i in range(m)]
+print(f"\n  {'Alternative':<25}" + "".join(f"{'C'+str(j+1):>10}" for j in range(nc)))
+for i,(alt,row) in enumerate(zip(alternatives,V)):
+    print(f"  {DIM}A{i+1}{RESET}  {alt:<22}" + "".join(f"{v:>10.4f}" for v in row))
+
+header("STEP 6 — Positive & Negative Ideal Solutions")
+PIS = [max(V[i][j] for i in range(m)) if ctype[j]=="benefit" else min(V[i][j] for i in range(m)) for j in range(nc)]
+NIS = [min(V[i][j] for i in range(m)) if ctype[j]=="benefit" else max(V[i][j] for i in range(m)) for j in range(nc)]
+print(f"\n  {'Criterion':<30} {'PIS (A+)':>10} {'NIS (A-)':>10}")
+for j,c in enumerate(criteria):
+    print(f"  {DIM}C{j+1}{RESET}  {c:<26}({ctype[j]:<7})  {GREEN}{PIS[j]:>8.4f}{RESET}  {RED}{NIS[j]:>8.4f}{RESET}")
+
+header("STEP 7 — Separation Measures & Closeness Coefficient")
+Dp = [math.sqrt(sum((V[i][j]-PIS[j])**2 for j in range(nc))) for i in range(m)]
+Dn = [math.sqrt(sum((V[i][j]-NIS[j])**2 for j in range(nc))) for i in range(m)]
+C  = [Dn[i]/(Dp[i]+Dn[i]) for i in range(m)]
+print(f"\n  {'Alternative':<25} {'D+ (PIS)':>12} {'D- (NIS)':>12} {'Closeness C':>14}")
+for i,alt in enumerate(alternatives):
+    print(f"  {DIM}A{i+1}{RESET}  {alt:<22} {Dp[i]:>12.5f} {Dn[i]:>12.5f} {CYAN}{C[i]:>14.5f}{RESET}")
+
+# ─────────────────────────────────────────────────
+# STEP 8 — Final Ranking
+# ─────────────────────────────────────────────────
+header("STEP 8 — FINAL RANKING")
+ranked = sorted(enumerate(C), key=lambda x:x[1], reverse=True)
+medals = ["🥇","🥈","🥉","  4."]
+bmax   = max(C)
+print()
+for rank,(idx,score) in enumerate(ranked):
+    bar = "█"*int((score/bmax)*35) + "░"*(35-int((score/bmax)*35))
+    col = GREEN if rank==0 else (CYAN if rank==1 else (YELLOW if rank==2 else DIM))
+    b   = BOLD if rank==0 else ""
+    print(f"  {medals[rank]}  {b}{alternatives[idx]:<25}{RESET}  {col}C = {score:.5f}{RESET}  {col}{bar}{RESET}")
+
+best = ranked[0][0]
+print(f"\n  {GREEN}{BOLD}  ✔  RECOMMENDED: {alternatives[best]}{RESET}")
+print(f"  {DIM}  Closeness = {C[best]:.5f} (highest){RESET}")
+
+# ─────────────────────────────────────────────────
+# STEP 9 — Sensitivity Analysis
+# ─────────────────────────────────────────────────
+header("STEP 9 — SENSITIVITY ANALYSIS (+20% per criterion)")
+
+def topsis_q(X, W, ct):
+    m=len(X); n=len(X[0])
+    cnf=[math.sqrt(sum(X[i][j]**2 for i in range(m))) for j in range(n)]
+    R=[[X[i][j]/cnf[j] for j in range(n)] for i in range(m)]
+    V=[[R[i][j]*W[j] for j in range(n)] for i in range(m)]
+    PIS=[max(V[i][j] for i in range(m)) if ct[j]=="benefit" else min(V[i][j] for i in range(m)) for j in range(n)]
+    NIS=[min(V[i][j] for i in range(m)) if ct[j]=="benefit" else max(V[i][j] for i in range(m)) for j in range(n)]
+    Dp=[math.sqrt(sum((V[i][j]-PIS[j])**2 for j in range(n))) for i in range(m)]
+    Dn=[math.sqrt(sum((V[i][j]-NIS[j])**2 for j in range(n))) for i in range(m)]
+    C=[Dn[i]/(Dp[i]+Dn[i]) for i in range(m)]
+    return sorted(range(m),key=lambda x:C[x],reverse=True), C
+
+rb,_ = topsis_q(X,weights,ctype)
+print(f"\n  {'Scenario':<30} {'Rank 1':<22} {'Rank 2':<22} {'Rank 3'}")
+print(f"  {DIM}{'─'*88}{RESET}")
+print(f"  {'Baseline':<30} {alternatives[rb[0]]:<22} {alternatives[rb[1]]:<22} {alternatives[rb[2]]}")
+for bj in range(nc):
+    nw=weights[:]
+    nw[bj]+=nw[bj]*0.20
+    tot=sum(nw); nw=[w/tot for w in nw]
+    rn,_=topsis_q(X,nw,ctype)
+    sc=f"+20% C{bj+1} ({criteria[bj][:15]})"
+    chg = rn[:3]!=rb[:3]
+    row=f"  {sc:<30}"
+    for k in range(3):
+        col=GREEN if rn[k]==rb[k] else YELLOW
+        row+=f" {col}{alternatives[rn[k]]:<22}{RESET}"
+    print(row + (" ← changed" if chg else ""))
+
+# ─────────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────────
+header("SUMMARY & CONCLUSION")
+print(f"""
+  {BOLD}Problem:{RESET}  Select the optimal Digital Twin platform for
+            Industry 4.0 predictive maintenance.
+
+  {BOLD}Methods:{RESET}  AHP (weight derivation) + TOPSIS (ranking)
+
+  {BOLD}Criterion Weights from AHP:{RESET}""")
+for i,(c,w) in enumerate(zip(criteria,weights)):
+    print(f"    C{i+1}  {c:<30} {CYAN}{w:.4f}{RESET}  {YELLOW}{'▓'*int(w*40)}{RESET}")
+
+print(f"""
+  {BOLD}Consistency:{RESET}  CR = {CR:.4f}  {'✔ Consistent' if CR<0.10 else '✘ Inconsistent'}
+
+  {BOLD}TOPSIS Ranking:{RESET}""")
+for rank,(idx,score) in enumerate(ranked):
+    print(f"    {rank+1}. {alternatives[idx]:<25}  C = {score:.5f}")
+
+print(f"""
+  {GREEN}{BOLD}  → Recommended: {alternatives[best]}{RESET}
+
+  {DIM}  Based on: Taherdoost & Madanchian (2023), Kumar & Pamucar (2025),
+  IBM (2026), Neto et al. (2024), Abdoune et al. (2024){RESET}
+""")
+print(f"{CYAN}{'═'*65}{RESET}")
+print(f"{CYAN}{BOLD}  Digital Twin & MCDM | Academic Assignment 2025–2026{RESET}")
+print(f"{CYAN}{BOLD}  IMH/10003/23 · IMH/10011/23 · IMH/10053/23 · IMH/10063/23{RESET}")
+print(f"{CYAN}{'═'*65}{RESET}")
+</script>
+
+<!-- ══════════════ JAVASCRIPT ══════════════ -->
+<script>
+// ── Page switching ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Grab embedded Python source ──
+const PYTHON_CODE = document.getElementById('python-source').textContent.trim();
+
+// ── Populate code viewer ──
+document.getElementById('code-block').textContent = PYTHON_CODE;
+hljs.highlightElement(document.getElementById('code-block'));
+
+// ── Download link ──
+const blob = new Blob([PYTHON_CODE], { type: 'text/plain' });
+document.getElementById('dl-link').href = URL.createObjectURL(blob);
+
+// ── ANSI → HTML parser ──
+function ansiToHtml(text) {
+  const map = {
+    '\\033\\[96m': '<span class="ansi-cyan">',
+    '\\033\\[92m': '<span class="ansi-green">',
+    '\\033\\[93m': '<span class="ansi-yellow">',
+    '\\033\\[91m': '<span class="ansi-red">',
+    '\\033\\[95m': '<span class="ansi-magenta">',
+    '\\033\\[1m':  '<span class="ansi-bold">',
+    '\\033\\[2m':  '<span class="ansi-dim">',
+    '\\033\\[0m':  '</span>',
+  };
+  // escape HTML first
+  let html = text
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  // replace ANSI codes
+  html = html
+    .replace(/\x1b\[96m/g, '<span class="ansi-cyan">')
+    .replace(/\x1b\[92m/g, '<span class="ansi-green">')
+    .replace(/\x1b\[93m/g, '<span class="ansi-yellow">')
+    .replace(/\x1b\[91m/g, '<span class="ansi-red">')
+    .replace(/\x1b\[95m/g, '<span class="ansi-magenta">')
+    .replace(/\x1b\[1m/g,  '<span class="ansi-bold">')
+    .replace(/\x1b\[2m/g,  '<span class="ansi-dim">')
+    .replace(/\x1b\[0m/g,  '</span>');
+  return html;
+}
+
+function setStatus(state, msg) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  dot.className = 'status-dot ' + state;
+  text.textContent = msg;
+}
+
+// ── Load Pyodide ──
+let pyodide = null;
+
+async function loadPyodideRuntime() {
+  try {
+    setStatus('loading', 'Loading Python runtime (Pyodide)... please wait.');
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js';
+    document.head.appendChild(script);
+    await new Promise((res, rej) => { script.onload = res; script.onerror = rej; });
+    pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/' });
+    setStatus('ready', 'Python runtime ready — click "Run Analysis" to execute.');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('output-terminal').innerHTML =
+      `<div class="prompt-placeholder">
+        <div class="prompt-icon">✅</div>
+        <div class="prompt-text" style="color:var(--accent3)">Python runtime loaded — ready to run!</div>
+        <div class="prompt-text" style="color:var(--muted); margin-top:0.25rem">Click the ▶ Run Analysis button above</div>
+      </div>`;
+  } catch (err) {
+    setStatus('error', 'Failed to load Pyodide. Check your internet connection.');
+    document.getElementById('output-terminal').innerHTML =
+      `<div class="prompt-placeholder">
+        <div class="prompt-icon">❌</div>
+        <div class="prompt-text" style="color:var(--red)">Could not load Python runtime.</div>
+        <div class="prompt-text" style="color:var(--muted)">Requires internet. Try refreshing the page.</div>
+      </div>`;
+  }
+}
+
+// ── Run Python ──
+async function runPython() {
+  if (!pyodide) return;
+  const btn = document.getElementById('run-btn');
+  const term = document.getElementById('output-terminal');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="icon">⏳</span> Running...';
+  setStatus('loading', 'Executing Python script...');
+  term.innerHTML = '<div style="color:var(--muted); font-family:var(--mono); padding:0.5rem 0">Running AHP + TOPSIS analysis...</div>';
+
+  try {
+    // Capture stdout
+    await pyodide.runPythonAsync(`
+import sys
+from io import StringIO
+_buf = StringIO()
+sys.stdout = _buf
+`);
+    await pyodide.runPythonAsync(PYTHON_CODE);
+    const output = await pyodide.runPythonAsync(`
+sys.stdout = sys.__stdout__
+_buf.getvalue()
+`);
+    term.innerHTML = ansiToHtml(output);
+    setStatus('ready', 'Execution complete. Run again anytime.');
+  } catch (err) {
+    term.innerHTML = `<span style="color:var(--red)">Error: ${err.message}</span>`;
+    setStatus('error', 'Execution failed — see terminal for details.');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span class="icon">▶</span> Run Analysis';
+}
+
+// Start loading Pyodide on page load
+loadPyodideRuntime();
+</script>
+</body>
+</html>
